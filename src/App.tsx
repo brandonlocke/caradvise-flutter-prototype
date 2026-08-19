@@ -210,6 +210,7 @@ export default function Home() {
   const [selectedVehicleId, setSelectedVehicleId] = useState("honda");
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [showAllServiceChips, setShowAllServiceChips] = useState(false);
   const [bookingChoiceOpen, setBookingChoiceOpen] = useState(false);
   const [fulfillmentChoice, setFulfillmentChoice] = useState<"schedule" | "walkin" | null>(null);
   const [currentDetail, setCurrentDetail] = useState<string | null>(null);
@@ -269,6 +270,7 @@ export default function Home() {
     setSelectedVehicleId(next.vehicles[0]?.id ?? "honda");
     setSwitcherOpen(false);
     setSelectedService(null);
+    setShowAllServiceChips(false);
     setBookingChoiceOpen(false);
     setFulfillmentChoice(null);
     setCurrentDetail(null);
@@ -283,6 +285,7 @@ export default function Home() {
   function chooseVehicle(id: string) {
     setSelectedVehicleId(id);
     setSelectedService(null);
+    setShowAllServiceChips(false);
     setBookingChoiceOpen(false);
     setFulfillmentChoice(null);
     setSwitcherOpen(false);
@@ -379,22 +382,19 @@ export default function Home() {
               setSection={setSection}
               setSwitcherOpen={setSwitcherOpen}
               selectedService={selectedService}
+              showAllServiceChips={showAllServiceChips}
+              toggleAllServiceChips={() => setShowAllServiceChips((show) => !show)}
               selectService={(service) => {
                 setSelectedService(service);
                 setBookingChoiceOpen(false);
                 setFulfillmentChoice(null);
               }}
               bookingChoiceOpen={bookingChoiceOpen}
-              openBookingChoice={() => {
-                setBookingChoiceOpen(true);
-                setFulfillmentChoice(scenario.market === "Canada" ? "walkin" : null);
-              }}
               closeBookingChoice={() => {
                 setBookingChoiceOpen(false);
                 setFulfillmentChoice(null);
               }}
               fulfillmentChoice={fulfillmentChoice}
-              setFulfillmentChoice={setFulfillmentChoice}
               currentDetail={currentDetail}
               setCurrentDetail={setCurrentDetail}
               detailActivity={detailActivity}
@@ -443,9 +443,6 @@ export default function Home() {
         {showServiceDock && selectedVehicle && (
           <PersistentServiceAction
             scenario={scenario}
-            vehicle={selectedVehicle}
-            service={planningService}
-            selectedService={Boolean(selectedService)}
             activeActivity={activeForSelected}
             membershipReady={membershipReady}
             viewCurrent={() => setSection("Current")}
@@ -530,9 +527,6 @@ export default function Home() {
 
 function PersistentServiceAction({
   scenario,
-  vehicle,
-  service,
-  selectedService,
   activeActivity,
   membershipReady,
   viewCurrent,
@@ -542,9 +536,6 @@ function PersistentServiceAction({
   walkIn,
 }: {
   scenario: Scenario;
-  vehicle: Vehicle;
-  service: string | null;
-  selectedService: boolean;
   activeActivity?: Activity;
   membershipReady: boolean;
   viewCurrent: () => void;
@@ -553,9 +544,9 @@ function PersistentServiceAction({
   schedule: () => void;
   walkIn: () => void;
 }) {
-  let context = selectedService ? "Selected service" : `Recommended for ${vehicle.name}`;
-  let title = service ?? "Plan service";
-  let primaryLabel = service ? `SCHEDULE ${service.toUpperCase()}` : "SCHEDULE SERVICE";
+  let context: string | null = null;
+  let title: string | null = null;
+  let primaryLabel = "SCHEDULE SERVICE";
   let primaryAction = schedule;
   let secondaryLabel: string | null = "FIND A WALK-IN";
   let secondaryAction = walkIn;
@@ -579,8 +570,6 @@ function PersistentServiceAction({
     primaryAction = bookInstallation;
     secondaryLabel = null;
   } else if (scenario.market === "Canada") {
-    context = service ? `Plan ${service.toLowerCase()}` : "Plan service";
-    title = "Visit a participating shop as a walk-in";
     primaryLabel = "FIND A WALK-IN";
     primaryAction = walkIn;
     secondaryLabel = null;
@@ -588,10 +577,12 @@ function PersistentServiceAction({
 
   return (
     <aside className="service-action-dock" aria-label="Service booking action">
-      <div className="dock-context">
-        <small>{context}</small>
-        <strong>{title}</strong>
-      </div>
+      {context && title && (
+        <div className="dock-context">
+          <small>{context}</small>
+          <strong>{title}</strong>
+        </div>
+      )}
       <div className={`dock-actions ${secondaryLabel ? "dual" : ""}`}>
         {secondaryLabel && (
           <button className="dock-secondary" onClick={secondaryAction}>{secondaryLabel}</button>
@@ -612,12 +603,12 @@ function ServiceArea({
   setSection,
   setSwitcherOpen,
   selectedService,
+  showAllServiceChips,
+  toggleAllServiceChips,
   selectService,
   bookingChoiceOpen,
-  openBookingChoice,
   closeBookingChoice,
   fulfillmentChoice,
-  setFulfillmentChoice,
   currentDetail,
   setCurrentDetail,
   detailActivity,
@@ -639,12 +630,12 @@ function ServiceArea({
   setSection: (section: "Plan" | "Current") => void;
   setSwitcherOpen: (open: boolean) => void;
   selectedService: string | null;
+  showAllServiceChips: boolean;
+  toggleAllServiceChips: () => void;
   selectService: (service: string) => void;
   bookingChoiceOpen: boolean;
-  openBookingChoice: () => void;
   closeBookingChoice: () => void;
   fulfillmentChoice: "schedule" | "walkin" | null;
-  setFulfillmentChoice: (choice: "schedule" | "walkin") => void;
   currentDetail: string | null;
   setCurrentDetail: (id: string | null) => void;
   detailActivity?: Activity;
@@ -774,7 +765,6 @@ function ServiceArea({
                     service={selectedService}
                     scenario={scenario}
                     choice={fulfillmentChoice}
-                    setChoice={setFulfillmentChoice}
                     close={closeBookingChoice}
                   />
                 ) : (
@@ -786,7 +776,7 @@ function ServiceArea({
                     <h3>{selectedVehicle.recommendation}</h3>
                     <p>Based on {selectedVehicle.mileage} miles</p>
                   </div>
-                  <button className="text-button" onClick={() => selectService(selectedVehicle.recommendation)}>Select</button>
+                  <button className="text-button" onClick={() => selectService(selectedVehicle.recommendation)}>Check price</button>
                 </article>
 
                 <section className="content-section">
@@ -801,7 +791,7 @@ function ServiceArea({
                     Tap a service to update the map and compare what’s nearby.
                   </p>
                   <div className="chips">
-                    {serviceOptions.map((service) => (
+                    {serviceOptions.slice(0, showAllServiceChips ? serviceOptions.length : 4).map((service) => (
                       <button
                         key={service}
                         className={selectedService === service ? "selected" : ""}
@@ -810,8 +800,10 @@ function ServiceArea({
                         {service}
                       </button>
                     ))}
+                    <button className="more-chip" onClick={toggleAllServiceChips}>
+                      {showAllServiceChips ? "Show less" : `More services +${serviceOptions.length - 4}`}
+                    </button>
                   </div>
-                  <button className="catalog-link">See all services <span>›</span></button>
                 </section>
 
                 {selectedService && (
@@ -820,7 +812,6 @@ function ServiceArea({
                     scenario={scenario}
                     membershipReady={membershipReady}
                     openAccount={openAccount}
-                    openBookingChoice={openBookingChoice}
                   />
                 )}
 
@@ -955,12 +946,11 @@ function EbayInstallationPlan({ bookingOpen, openBooking, closeBooking, confirmB
   );
 }
 
-function ServiceResults({ service, scenario, membershipReady, openAccount, openBookingChoice }: {
+function ServiceResults({ service, scenario, membershipReady, openAccount }: {
   service: string;
   scenario: Scenario;
   membershipReady: boolean;
   openAccount: () => void;
-  openBookingChoice: () => void;
 }) {
   const [resultsView, setResultsView] = useState<"Map" | "List">("Map");
 
@@ -1045,74 +1035,56 @@ function ServiceResults({ service, scenario, membershipReady, openAccount, openB
           ? "Price checking doesn’t start a booking. Final pricing is confirmed before service."
           : "Shop checking doesn’t start a service request."}
       </p>
-      <button className="primary-button comparison-continue" onClick={openBookingChoice}>
-        {scenario.market === "US" ? `CONTINUE WITH ${service.toUpperCase()}` : "SELECT A WALK-IN SHOP"}
-      </button>
     </section>
   );
 }
 
-function FulfillmentChoices({ service, scenario, choice, setChoice, close }: {
+function FulfillmentChoices({ service, scenario, choice, close }: {
   service: string;
   scenario: Scenario;
   choice: "schedule" | "walkin" | null;
-  setChoice: (choice: "schedule" | "walkin") => void;
   close: () => void;
 }) {
+  if (!choice) return null;
+
   const isCanada = scenario.market === "Canada";
+  const isSchedule = choice === "schedule";
 
   return (
     <section className="fulfillment-panel" aria-labelledby="fulfillment-title">
       <div className="fulfillment-heading">
         <div>
-          <p className="eyebrow">Begin service planning</p>
-          <h3 id="fulfillment-title">
-            {isCanada ? `Find a walk-in for ${service}` : "When do you need service?"}
-          </h3>
+          <p className="eyebrow">{isSchedule ? "Schedule service" : "Walk-in service"}</p>
+          <h3 id="fulfillment-title">{isSchedule ? "Choose an appointment" : "Find a walk-in"}</h3>
         </div>
-        <button className="close-button small-close" onClick={close} aria-label="Close service options">×</button>
+        <button className="close-button small-close" onClick={close} aria-label="Close booking flow">×</button>
       </div>
       <p className="fulfillment-intro">
-        {isCanada
-          ? "Appointments aren’t available in Canada. Choose a participating shop and visit as a walk-in."
-          : `Choose how you’d like to continue with ${service.toLowerCase()}.`}
+        {isSchedule
+          ? "Select a shop, then choose an available date and time."
+          : isCanada
+            ? "Choose a participating shop and visit as a walk-in. Appointments aren’t available in Canada."
+            : "Find a participating shop for service today. We recommend calling before you go."}
       </p>
 
-      <div className={`fulfillment-options ${isCanada ? "single" : ""}`}>
-        {!isCanada && (
-          <button
-            className={`fulfillment-option ${choice === "schedule" ? "selected" : ""}`}
-            onClick={() => setChoice("schedule")}
-          >
-            <span className="fulfillment-icon">□</span>
-            <strong>Schedule appointment</strong>
-            <small>Book for a future date</small>
-            <span className="option-action">SCHEDULE ›</span>
-          </button>
-        )}
-        <button
-          className={`fulfillment-option ${choice === "walkin" ? "selected" : ""}`}
-          onClick={() => setChoice("walkin")}
-        >
-          <span className="fulfillment-icon">ϟ</span>
-          <strong>Find a walk-in</strong>
-          <small>{isCanada ? "Choose a nearby participating shop" : "Look for service available today"}</small>
-          <span className="option-action">FIND A WALK-IN ›</span>
-        </button>
+      <div className="booking-steps" aria-label="Booking steps">
+        <span className="active">1 <small>Service</small></span>
+        <span>2 <small>Shop</small></span>
+        {isSchedule && <span>3 <small>Time</small></span>}
       </div>
 
-      {choice && (
-        <article className="fulfillment-next-step">
-          <span className="status-dot" />
-          <div>
-            <small>NEXT STEP</small>
-            <strong>{choice === "schedule" ? "Choose a shop, date, and time" : "Choose a shop and view arrival instructions"}</strong>
-            <p>{choice === "schedule" ? "No appointment is created until you confirm." : "We recommend calling the shop before you go."}</p>
-          </div>
-          <button>{choice === "schedule" ? "CHOOSE TIME" : "CHOOSE SHOP"}</button>
-        </article>
-      )}
-      <p className="flow-boundary-note">Your earlier price check didn’t create a service request.</p>
+      <article className="flow-service-row">
+        <span className="status-dot" />
+        <div><small>SERVICE</small><strong>{service}</strong></div>
+        <button>Change</button>
+      </article>
+
+      <button className="primary-button flow-primary">
+        {isSchedule ? "CHOOSE A SHOP" : "FIND WALK-IN SHOPS"}
+      </button>
+      <p className="flow-boundary-note">
+        {isSchedule ? "No appointment is created until you confirm a time." : "No service request has been created yet."}
+      </p>
     </section>
   );
 }
