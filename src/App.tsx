@@ -189,7 +189,18 @@ const scenarios: Record<string, Scenario> = {
   },
 };
 
-const serviceOptions = ["Oil change", "Tire rotation", "Brakes", "Tires", "Not sure"];
+const serviceOptions = [
+  "Oil change",
+  "Tire rotation",
+  "Brake service",
+  "Battery",
+  "Wheel alignment",
+  "Cabin air filter",
+  "Engine air filter",
+  "Wiper blades",
+  "Coolant service",
+  "Multipoint inspection",
+];
 const groupOrder = ["Needs attention", "Today", "Upcoming", "Waiting"];
 
 export default function Home() {
@@ -617,7 +628,16 @@ function ServiceArea({
                 </article>
 
                 <section className="content-section">
-                  <h3>Common services</h3>
+                  <div className="section-heading-row service-heading">
+                    <div>
+                      <p className="eyebrow">Quick price check</p>
+                      <h3>Common services</h3>
+                    </div>
+                    <span>{scenario.market === "US" ? "Nearby prices" : "Nearby shops"}</span>
+                  </div>
+                  <p className="chip-instruction">
+                    Tap a service to update the map and compare what’s nearby.
+                  </p>
                   <div className="chips">
                     {serviceOptions.map((service) => (
                       <button
@@ -743,6 +763,8 @@ function ServiceResults({ service, scenario, membershipReady, openAccount }: {
   membershipReady: boolean;
   openAccount: () => void;
 }) {
+  const [resultsView, setResultsView] = useState<"Map" | "List">("Map");
+
   if (!membershipReady) {
     return (
       <article className="membership-gate">
@@ -754,26 +776,76 @@ function ServiceResults({ service, scenario, membershipReady, openAccount }: {
     );
   }
 
+  const shops = scenario.market === "US"
+    ? [
+        { name: "Pep Boys", distance: "1.8 miles", detail: "Appointment or walk-in", price: "$74–$91", pin: "1" },
+        { name: "Midas", distance: "3.1 miles", detail: "Walk-in", price: "$82–$96", pin: "2" },
+        { name: "Firestone", distance: "4.4 miles", detail: "Appointment or walk-in", price: "$88–$104", pin: "3" },
+      ]
+    : [
+        { name: "Mr. Lube", distance: "1.8 km", detail: "Walk-in", price: "", pin: "1" },
+        { name: "Canadian Tire", distance: "3.1 km", detail: "Walk-in", price: "", pin: "2" },
+        { name: "Jiffy Lube", distance: "4.6 km", detail: "Walk-in", price: "", pin: "3" },
+      ];
+
   return (
     <section className="results-panel">
       <div className="selected-service-row">
-        <span>Selected service</span>
+        <span>{scenario.market === "US" ? "Comparing nearby prices" : "Showing nearby shops"}</span>
         <strong>{service}</strong>
       </div>
-      <h3>{scenario.market === "US" ? "Local prices and shops" : "Eligible shops near you"}</h3>
-      <p className="section-intro">
+      <div className="results-title-row">
+        <div>
+          <h3>{scenario.market === "US" ? `Prices near you` : "Eligible shops near you"}</h3>
+          <p className="section-intro">
+            {scenario.market === "US"
+              ? `Estimated totals for ${service.toLowerCase()} on this vehicle.`
+              : "Pricing and appointments aren’t available in Canada; visit a nearby eligible shop as a walk-in."}
+          </p>
+        </div>
+        <div className="view-toggle" aria-label="Results view">
+          {(["Map", "List"] as const).map((view) => (
+            <button
+              key={view}
+              className={resultsView === view ? "active" : ""}
+              onClick={() => setResultsView(view)}
+            >
+              {view}
+            </button>
+          ))}
+        </div>
+      </div>
+      {resultsView === "Map" ? (
+        <div className="price-map" aria-label={`Nearby results for ${service}`}>
+          <span className="map-road road-one" />
+          <span className="map-road road-two" />
+          <span className="map-road road-three" />
+          {shops.map((shop, index) => (
+            <span className={`map-pin pin-${index + 1}`} key={shop.name} aria-label={shop.name}>
+              {shop.pin}
+            </span>
+          ))}
+          <span className="map-you">You</span>
+          <div className="map-result-card">
+            <span><strong>{shops[0].name}</strong><small>{shops[0].distance} · {shops[0].detail}</small></span>
+            <strong>{scenario.market === "US" ? shops[0].price : "Nearby"}</strong>
+          </div>
+        </div>
+      ) : (
+        <div className="shop-list">
+          {shops.map((shop) => (
+            <article className="shop-row" key={shop.name}>
+              <span><strong>{shop.name}</strong><small>{shop.distance} · {shop.detail}</small></span>
+              <strong>{scenario.market === "US" ? shop.price : "Nearby"}</strong>
+            </article>
+          ))}
+        </div>
+      )}
+      <p className="comparison-note">
         {scenario.market === "US"
-          ? "Prices appear after the service and vehicle are known."
-          : "Pricing and appointments aren’t available in Canada; the same journey continues with walk-in shops."}
+          ? "Price checking doesn’t start a booking. Final pricing is confirmed before service."
+          : "Shop checking doesn’t start a service request."}
       </p>
-      <button className="shop-row">
-        <span><strong>{scenario.market === "US" ? "Pep Boys" : "Mr. Lube"}</strong><small>1.8 miles away · {scenario.market === "US" ? "Appointment or walk-in" : "Walk-in"}</small></span>
-        <strong>{scenario.market === "US" ? "$74–$91" : "›"}</strong>
-      </button>
-      <button className="shop-row">
-        <span><strong>{scenario.market === "US" ? "Midas" : "Canadian Tire"}</strong><small>3.1 miles away · Walk-in</small></span>
-        <strong>{scenario.market === "US" ? "$82–$96" : "›"}</strong>
-      </button>
     </section>
   );
 }
