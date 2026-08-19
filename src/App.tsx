@@ -210,6 +210,8 @@ export default function Home() {
   const [selectedVehicleId, setSelectedVehicleId] = useState("honda");
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [bookingChoiceOpen, setBookingChoiceOpen] = useState(false);
+  const [fulfillmentChoice, setFulfillmentChoice] = useState<"schedule" | "walkin" | null>(null);
   const [currentDetail, setCurrentDetail] = useState<string | null>(null);
   const [approvalResolved, setApprovalResolved] = useState(false);
   const [addedVehicle, setAddedVehicle] = useState(false);
@@ -257,6 +259,8 @@ export default function Home() {
     setSelectedVehicleId(next.vehicles[0]?.id ?? "honda");
     setSwitcherOpen(false);
     setSelectedService(null);
+    setBookingChoiceOpen(false);
+    setFulfillmentChoice(null);
     setCurrentDetail(null);
     setApprovalResolved(false);
     setAddedVehicle(false);
@@ -269,6 +273,8 @@ export default function Home() {
   function chooseVehicle(id: string) {
     setSelectedVehicleId(id);
     setSelectedService(null);
+    setBookingChoiceOpen(false);
+    setFulfillmentChoice(null);
     setSwitcherOpen(false);
   }
 
@@ -356,7 +362,22 @@ export default function Home() {
               setSection={setSection}
               setSwitcherOpen={setSwitcherOpen}
               selectedService={selectedService}
-              setSelectedService={setSelectedService}
+              selectService={(service) => {
+                setSelectedService(service);
+                setBookingChoiceOpen(false);
+                setFulfillmentChoice(null);
+              }}
+              bookingChoiceOpen={bookingChoiceOpen}
+              openBookingChoice={() => {
+                setBookingChoiceOpen(true);
+                setFulfillmentChoice(scenario.market === "Canada" ? "walkin" : null);
+              }}
+              closeBookingChoice={() => {
+                setBookingChoiceOpen(false);
+                setFulfillmentChoice(null);
+              }}
+              fulfillmentChoice={fulfillmentChoice}
+              setFulfillmentChoice={setFulfillmentChoice}
               currentDetail={currentDetail}
               setCurrentDetail={setCurrentDetail}
               detailActivity={detailActivity}
@@ -484,7 +505,12 @@ function ServiceArea({
   setSection,
   setSwitcherOpen,
   selectedService,
-  setSelectedService,
+  selectService,
+  bookingChoiceOpen,
+  openBookingChoice,
+  closeBookingChoice,
+  fulfillmentChoice,
+  setFulfillmentChoice,
   currentDetail,
   setCurrentDetail,
   detailActivity,
@@ -506,7 +532,12 @@ function ServiceArea({
   setSection: (section: "Plan" | "Current") => void;
   setSwitcherOpen: (open: boolean) => void;
   selectedService: string | null;
-  setSelectedService: (service: string | null) => void;
+  selectService: (service: string) => void;
+  bookingChoiceOpen: boolean;
+  openBookingChoice: () => void;
+  closeBookingChoice: () => void;
+  fulfillmentChoice: "schedule" | "walkin" | null;
+  setFulfillmentChoice: (choice: "schedule" | "walkin") => void;
   currentDetail: string | null;
   setCurrentDetail: (id: string | null) => void;
   detailActivity?: Activity;
@@ -624,7 +655,7 @@ function ServiceArea({
                     <h3>{selectedVehicle.recommendation}</h3>
                     <p>Based on {selectedVehicle.mileage} miles</p>
                   </div>
-                  <button className="text-button" onClick={() => setSelectedService(selectedVehicle.recommendation)}>Select</button>
+                  <button className="text-button" onClick={() => selectService(selectedVehicle.recommendation)}>Select</button>
                 </article>
 
                 <section className="content-section">
@@ -643,7 +674,7 @@ function ServiceArea({
                       <button
                         key={service}
                         className={selectedService === service ? "selected" : ""}
-                        onClick={() => setSelectedService(service)}
+                        onClick={() => selectService(service)}
                       >
                         {service}
                       </button>
@@ -658,6 +689,17 @@ function ServiceArea({
                     scenario={scenario}
                     membershipReady={membershipReady}
                     openAccount={openAccount}
+                    openBookingChoice={openBookingChoice}
+                  />
+                )}
+
+                {selectedService && bookingChoiceOpen && membershipReady && (
+                  <FulfillmentChoices
+                    service={selectedService}
+                    scenario={scenario}
+                    choice={fulfillmentChoice}
+                    setChoice={setFulfillmentChoice}
+                    close={closeBookingChoice}
                   />
                 )}
 
@@ -790,11 +832,12 @@ function EbayInstallationPlan({ bookingOpen, openBooking, closeBooking, confirmB
   );
 }
 
-function ServiceResults({ service, scenario, membershipReady, openAccount }: {
+function ServiceResults({ service, scenario, membershipReady, openAccount, openBookingChoice }: {
   service: string;
   scenario: Scenario;
   membershipReady: boolean;
   openAccount: () => void;
+  openBookingChoice: () => void;
 }) {
   const [resultsView, setResultsView] = useState<"Map" | "List">("Map");
 
@@ -879,6 +922,74 @@ function ServiceResults({ service, scenario, membershipReady, openAccount }: {
           ? "Price checking doesn’t start a booking. Final pricing is confirmed before service."
           : "Shop checking doesn’t start a service request."}
       </p>
+      <button className="primary-button comparison-continue" onClick={openBookingChoice}>
+        {scenario.market === "US" ? `CONTINUE WITH ${service.toUpperCase()}` : "SELECT A WALK-IN SHOP"}
+      </button>
+    </section>
+  );
+}
+
+function FulfillmentChoices({ service, scenario, choice, setChoice, close }: {
+  service: string;
+  scenario: Scenario;
+  choice: "schedule" | "walkin" | null;
+  setChoice: (choice: "schedule" | "walkin") => void;
+  close: () => void;
+}) {
+  const isCanada = scenario.market === "Canada";
+
+  return (
+    <section className="fulfillment-panel" aria-labelledby="fulfillment-title">
+      <div className="fulfillment-heading">
+        <div>
+          <p className="eyebrow">Begin service planning</p>
+          <h3 id="fulfillment-title">
+            {isCanada ? `Find a walk-in for ${service}` : "When do you need service?"}
+          </h3>
+        </div>
+        <button className="close-button small-close" onClick={close} aria-label="Close service options">×</button>
+      </div>
+      <p className="fulfillment-intro">
+        {isCanada
+          ? "Appointments aren’t available in Canada. Choose a participating shop and visit as a walk-in."
+          : `Choose how you’d like to continue with ${service.toLowerCase()}.`}
+      </p>
+
+      <div className={`fulfillment-options ${isCanada ? "single" : ""}`}>
+        {!isCanada && (
+          <button
+            className={`fulfillment-option ${choice === "schedule" ? "selected" : ""}`}
+            onClick={() => setChoice("schedule")}
+          >
+            <span className="fulfillment-icon">□</span>
+            <strong>Schedule appointment</strong>
+            <small>Book for a future date</small>
+            <span className="option-action">SCHEDULE ›</span>
+          </button>
+        )}
+        <button
+          className={`fulfillment-option ${choice === "walkin" ? "selected" : ""}`}
+          onClick={() => setChoice("walkin")}
+        >
+          <span className="fulfillment-icon">ϟ</span>
+          <strong>Find a walk-in</strong>
+          <small>{isCanada ? "Choose a nearby participating shop" : "Look for service available today"}</small>
+          <span className="option-action">FIND A WALK-IN ›</span>
+        </button>
+      </div>
+
+      {choice && (
+        <article className="fulfillment-next-step">
+          <span className="status-dot" />
+          <div>
+            <small>NEXT STEP</small>
+            <strong>{choice === "schedule" ? "Choose a shop, date, and time" : "Choose a shop and view arrival instructions"}</strong>
+            <p>{choice === "schedule" ? "No appointment is created until you confirm." : "We recommend calling the shop before you go."}</p>
+          </div>
+          <button>{choice === "schedule" ? "CHOOSE TIME" : "CHOOSE SHOP"}</button>
+        </article>
+      )}
+      <p className="flow-boundary-note">Your earlier price check didn’t create a service request.</p>
     </section>
   );
 }
