@@ -130,6 +130,18 @@ button { cursor: pointer; }
 .shop-row small { margin-top: 3px; color: var(--muted); font-size: 9px; }
 .shop-row > strong { font-size: 12px; }
 .comparison-note { margin: 10px 0 0; color: var(--muted); font-size: 8px; line-height: 1.4; }
+.partner-services { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.partner-services-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 4px 0 11px; }
+.partner-services-heading h3 { margin: 0; font-size: 16px; }
+.partner-services-heading > span { color: var(--muted); font-size: 8px; }
+.partner-service-grid { display: grid; gap: 7px; }
+.partner-service-row { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 11px; padding: 11px 12px; text-align: left; background: var(--white); border: 1px solid var(--line); border-radius: 13px; }
+.partner-service-icon { width: 34px; height: 34px; display: grid; place-items: center; color: var(--orange-dark); background: var(--orange-soft); border-radius: 10px; font-size: 15px; font-weight: 850; }
+.partner-service-row strong, .partner-service-row small { display: block; }
+.partner-service-row strong { font-size: 11px; }
+.partner-service-row small { max-width: 225px; margin-top: 3px; overflow: hidden; color: var(--muted); font-size: 8px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.partner-service-row .chevron { font-size: 17px; }
+.partner-catalog-link { margin-top: 8px; padding-right: 5px; padding-left: 5px; color: var(--orange-dark); }
 .membership-gate { margin-top: 17px; padding: 16px; background: var(--orange-soft); border: 1px solid #ffd0b9; border-radius: 16px; }
 .membership-gate h3 { margin: 6px 0; font-size: 17px; }
 .membership-gate > p:not(.eyebrow) { margin: 0; color: #76513e; font-size: 11px; line-height: 1.5; }
