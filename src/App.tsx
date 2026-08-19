@@ -211,7 +211,7 @@ const scenarios: Record<string, Scenario> = {
     activities: [],
     defaultSection: "Plan",
     offer: {
-      title: "25% off oil changes",
+      title: "25% off an oil change",
       expires: "Sept. 30",
       detail: "Your Instacart benefit is applied automatically to an eligible oil change.",
     },
@@ -226,7 +226,7 @@ const scenarios: Record<string, Scenario> = {
     activities: [],
     defaultSection: "Plan",
     offer: {
-      title: "25% off oil changes",
+      title: "25% off an oil change",
       expires: "Sept. 30",
       detail: "Your Instacart benefit is applied automatically to an eligible oil change.",
     },
