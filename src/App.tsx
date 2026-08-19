@@ -329,7 +329,8 @@ export default function Home() {
     && vehicles.length > 0
     && Boolean(selectedVehicle)
     && !bookingChoiceOpen
-    && !ebayBookingOpen;
+    && !ebayBookingOpen
+    && !scenario.preformedCart;
 
   function changeScenario(key: string) {
     const next = scenarios[key];
@@ -919,7 +920,9 @@ function ServiceArea({
                     <h3>{selectedVehicle.recommendation}</h3>
                     <p>Based on {selectedVehicle.mileage} miles</p>
                   </div>
-                  <button className="text-button" onClick={() => selectService(selectedVehicle.recommendation)}>Check price</button>
+                  <button className="text-button" onClick={() => selectService(selectedVehicle.recommendation)}>
+                    {scenario.market === "US" ? "Check price" : "Find shops"}
+                  </button>
                 </article>
 
                 {scenario.offer && (
@@ -933,13 +936,15 @@ function ServiceArea({
                 <section className="content-section">
                   <div className="section-heading-row service-heading">
                     <div>
-                      <p className="eyebrow">Quick price check</p>
+                      <p className="eyebrow">{scenario.market === "US" ? "Quick price check" : "Quick shop check"}</p>
                       <h3>Common services</h3>
                     </div>
                     <span>{scenario.market === "US" ? "Nearby prices" : "Nearby shops"}</span>
                   </div>
                   <p className="chip-instruction">
-                    Tap a service to update the map and compare what’s nearby.
+                    {scenario.market === "US"
+                      ? "Tap a service to update the map and compare what’s nearby."
+                      : "Tap a service to update the map and see eligible shops nearby."}
                   </p>
                   <div className="chips">
                     {serviceOptions.slice(0, showAllServiceChips ? serviceOptions.length : 4).map((service) => (
