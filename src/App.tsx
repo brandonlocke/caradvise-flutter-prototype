@@ -250,6 +250,16 @@ export default function Home() {
   });
   const attentionCount = activities.filter((activity) => activity.group === "Needs attention").length;
   const membershipReady = !scenario.membershipRequired || membershipActivated;
+  const activeForSelected = selectedVehicle
+    ? activities.find((activity) => activity.vehicleId === selectedVehicle.id)
+    : undefined;
+  const planningService = selectedService ?? selectedVehicle?.recommendation ?? null;
+  const showServiceDock = area === "Service"
+    && section === "Plan"
+    && vehicles.length > 0
+    && Boolean(selectedVehicle)
+    && !bookingChoiceOpen
+    && !ebayBookingOpen;
 
   function changeScenario(key: string) {
     const next = scenarios[key];
@@ -281,6 +291,13 @@ export default function Home() {
   function addSampleVehicle() {
     setAddedVehicle(true);
     setSelectedVehicleId("honda");
+  }
+
+  function beginFulfillment(choice: "schedule" | "walkin") {
+    if (!planningService) return;
+    setSelectedService(planningService);
+    setBookingChoiceOpen(true);
+    setFulfillmentChoice(choice);
   }
 
   function startHold(item: string) {
@@ -350,7 +367,7 @@ export default function Home() {
           </button>
         </header>
 
-        <div className="screen">
+        <div className={`screen ${showServiceDock ? "with-service-dock" : ""}`}>
           {area === "Service" && (
             <ServiceArea
               scenario={scenario}
@@ -423,6 +440,22 @@ export default function Home() {
           )}
         </div>
 
+        {showServiceDock && selectedVehicle && (
+          <PersistentServiceAction
+            scenario={scenario}
+            vehicle={selectedVehicle}
+            service={planningService}
+            selectedService={Boolean(selectedService)}
+            activeActivity={activeForSelected}
+            membershipReady={membershipReady}
+            viewCurrent={() => setSection("Current")}
+            viewMembership={() => setArea("Account")}
+            bookInstallation={() => setEbayBookingOpen(true)}
+            schedule={() => beginFulfillment("schedule")}
+            walkIn={() => beginFulfillment("walkin")}
+          />
+        )}
+
         <nav className="bottom-nav" aria-label="Primary navigation">
           {["Service", "Vehicles", "Account"].map((item) => (
             <button
@@ -492,6 +525,80 @@ export default function Home() {
         )}
       </section>
     </main>
+  );
+}
+
+function PersistentServiceAction({
+  scenario,
+  vehicle,
+  service,
+  selectedService,
+  activeActivity,
+  membershipReady,
+  viewCurrent,
+  viewMembership,
+  bookInstallation,
+  schedule,
+  walkIn,
+}: {
+  scenario: Scenario;
+  vehicle: Vehicle;
+  service: string | null;
+  selectedService: boolean;
+  activeActivity?: Activity;
+  membershipReady: boolean;
+  viewCurrent: () => void;
+  viewMembership: () => void;
+  bookInstallation: () => void;
+  schedule: () => void;
+  walkIn: () => void;
+}) {
+  let context = selectedService ? "Selected service" : `Recommended for ${vehicle.name}`;
+  let title = service ?? "Plan service";
+  let primaryLabel = service ? `SCHEDULE ${service.toUpperCase()}` : "SCHEDULE SERVICE";
+  let primaryAction = schedule;
+  let secondaryLabel: string | null = "FIND A WALK-IN";
+  let secondaryAction = walkIn;
+
+  if (activeActivity) {
+    context = "Active service";
+    title = activeActivity.title;
+    primaryLabel = "VIEW CURRENT SERVICE";
+    primaryAction = viewCurrent;
+    secondaryLabel = null;
+  } else if (!membershipReady) {
+    context = "Membership required";
+    title = "Activate Plus to use the service network";
+    primaryLabel = "VIEW MEMBERSHIP";
+    primaryAction = viewMembership;
+    secondaryLabel = null;
+  } else if (scenario.preformedCart) {
+    context = "eBay installation order";
+    title = "Your tires are ready to schedule";
+    primaryLabel = "BOOK INSTALLATION";
+    primaryAction = bookInstallation;
+    secondaryLabel = null;
+  } else if (scenario.market === "Canada") {
+    context = service ? `Plan ${service.toLowerCase()}` : "Plan service";
+    title = "Visit a participating shop as a walk-in";
+    primaryLabel = "FIND A WALK-IN";
+    primaryAction = walkIn;
+    secondaryLabel = null;
+  }
+
+  return (
+    <aside className="service-action-dock" aria-label="Service booking action">
+      <div className="dock-context">
+        <small>{context}</small>
+        <strong>{title}</strong>
+      </div>
+      <div className={`dock-actions ${secondaryLabel ? "dual" : ""}`}>
+        {secondaryLabel && (
+          <button className="dock-secondary" onClick={secondaryAction}>{secondaryLabel}</button>
+        )}
+        <button className="dock-primary" onClick={primaryAction}>{primaryLabel}</button>
+      </div>
+    </aside>
   );
 }
 
@@ -607,13 +714,27 @@ function ServiceArea({
 
       {section === "Plan" ? (
         vehicles.length === 0 || !selectedVehicle ? (
-          <div className="ftu-state">
-            <span className="large-mark">＋</span>
-            <p className="eyebrow">Start with your vehicle</p>
-            <h3>Get guidance that fits your car</h3>
-            <p>Add a vehicle to see relevant services, maintenance timing, shops, and available benefits.</p>
+          <div className="ftu-state ftu-marketing">
+            <span className="large-mark">✓</span>
+            <p className="eyebrow">Car care with less guesswork</p>
+            <h3>Know what your car needs—and what to expect</h3>
+            <p className="ftu-lede">CarAdvise brings maintenance guidance, trusted service options, and expert support into one place.</p>
+            <div className="ftu-benefits">
+              <article>
+                <span>01</span>
+                <div><strong>Stay ahead of maintenance</strong><small>See what’s coming up based on your vehicle and mileage.</small></div>
+              </article>
+              <article>
+                <span>02</span>
+                <div><strong>Know your options</strong><small>Explore nearby shops and compare available pricing before deciding.</small></div>
+              </article>
+              <article>
+                <span>03</span>
+                <div><strong>Get expert backup</strong><small>Ask an ASE-certified expert about recommended work.</small></div>
+              </article>
+            </div>
             <button className="primary-button" onClick={addSampleVehicle}>ADD A VEHICLE</button>
-            <button className="text-link">Browse services first</button>
+            <p className="ftu-footnote">It takes about a minute and helps personalize your experience.</p>
           </div>
         ) : (
           <>
@@ -648,6 +769,16 @@ function ServiceArea({
               />
             ) : (
               <>
+                {bookingChoiceOpen && selectedService && membershipReady ? (
+                  <FulfillmentChoices
+                    service={selectedService}
+                    scenario={scenario}
+                    choice={fulfillmentChoice}
+                    setChoice={setFulfillmentChoice}
+                    close={closeBookingChoice}
+                  />
+                ) : (
+                  <>
                 <article className="recommendation-card">
                   <span className="status-dot" />
                   <div>
@@ -693,16 +824,6 @@ function ServiceArea({
                   />
                 )}
 
-                {selectedService && bookingChoiceOpen && membershipReady && (
-                  <FulfillmentChoices
-                    service={selectedService}
-                    scenario={scenario}
-                    choice={fulfillmentChoice}
-                    setChoice={setFulfillmentChoice}
-                    close={closeBookingChoice}
-                  />
-                )}
-
                 {!selectedService && (
                   <article className="value-card">
                     <span className="value-icon">ASE</span>
@@ -715,6 +836,8 @@ function ServiceArea({
                 )}
 
                 {scenario.market === "US" && <PartnerServicesModule />}
+                  </>
+                )}
               </>
             )}
           </>
