@@ -33,6 +33,21 @@ type Scenario = {
   defaultSection: "Plan" | "Current";
   membershipRequired?: boolean;
   preformedCart?: boolean;
+  offer?: {
+    title: string;
+    expires: string;
+    detail: string;
+  };
+};
+
+type Notification = {
+  id: "approval" | "receipt" | "appointment";
+  title: string;
+  detail: string;
+  vehicle: string;
+  time: string;
+  action: string;
+  unread: boolean;
 };
 
 const honda: Vehicle = {
@@ -43,6 +58,7 @@ const honda: Vehicle = {
   recommendation: "Oil change",
   timing: "Coming due",
   history: [
+    { date: "Aug 17, 2026", service: "Oil change · Receipt available", shop: "Firestone" },
     { date: "Jun 18, 2026", service: "Tire rotation", shop: "Pep Boys" },
     { date: "Feb 4, 2026", service: "Oil change", shop: "Take 5" },
   ],
@@ -103,6 +119,36 @@ const upcoming: Activity = {
   action: "View details",
 };
 
+const sampleNotifications: Notification[] = [
+  {
+    id: "approval",
+    title: "Approval needed",
+    detail: "Midas added two recommended services.",
+    vehicle: "2019 Subaru Outback",
+    time: "Just now",
+    action: "Review approval",
+    unread: true,
+  },
+  {
+    id: "receipt",
+    title: "Service complete",
+    detail: "Your receipt is ready to view.",
+    vehicle: "2016 Honda Odyssey",
+    time: "Yesterday",
+    action: "View receipt",
+    unread: true,
+  },
+  {
+    id: "appointment",
+    title: "Appointment reminder",
+    detail: "Thursday at 10:30 AM · Pep Boys",
+    vehicle: "2016 Honda Odyssey",
+    time: "2 days ago",
+    action: "View appointment",
+    unread: false,
+  },
+];
+
 const scenarios: Record<string, Scenario> = {
   idle: {
     label: "Repeat user · idle",
@@ -155,6 +201,21 @@ const scenarios: Record<string, Scenario> = {
     activities: [],
     defaultSection: "Plan",
   },
+  instacart: {
+    label: "US · Instacart offer",
+    summary: "An available offer stays discoverable without competing with service planning.",
+    market: "US",
+    affiliation: "Instacart",
+    membership: "Essential",
+    vehicles: [honda, subaru],
+    activities: [],
+    defaultSection: "Plan",
+    offer: {
+      title: "25% off oil changes",
+      expires: "Sept. 30",
+      detail: "Your Instacart benefit is applied automatically to an eligible oil change.",
+    },
+  },
   canada: {
     label: "Canada · Instacart",
     summary: "The structure remains the same, while pricing and appointments are omitted.",
@@ -164,6 +225,11 @@ const scenarios: Record<string, Scenario> = {
     vehicles: [toyota],
     activities: [],
     defaultSection: "Plan",
+    offer: {
+      title: "25% off oil changes",
+      expires: "Sept. 30",
+      detail: "Your Instacart benefit is applied automatically to an eligible oil change.",
+    },
   },
   uber: {
     label: "Canada · Uber requirement",
@@ -209,8 +275,10 @@ export default function Home() {
   const [section, setSection] = useState<"Plan" | "Current">("Plan");
   const [selectedVehicleId, setSelectedVehicleId] = useState("honda");
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<string | null>(null);
   const [showAllServiceChips, setShowAllServiceChips] = useState(false);
+  const [offerExpanded, setOfferExpanded] = useState(false);
   const [bookingChoiceOpen, setBookingChoiceOpen] = useState(false);
   const [fulfillmentChoice, setFulfillmentChoice] = useState<"schedule" | "walkin" | null>(null);
   const [currentDetail, setCurrentDetail] = useState<string | null>(null);
@@ -250,6 +318,7 @@ export default function Home() {
     return activity;
   });
   const attentionCount = activities.filter((activity) => activity.group === "Needs attention").length;
+  const unreadNotificationCount = sampleNotifications.filter((notification) => notification.unread).length;
   const membershipReady = !scenario.membershipRequired || membershipActivated;
   const activeForSelected = selectedVehicle
     ? activities.find((activity) => activity.vehicleId === selectedVehicle.id)
@@ -269,8 +338,10 @@ export default function Home() {
     setSection(next.defaultSection);
     setSelectedVehicleId(next.vehicles[0]?.id ?? "honda");
     setSwitcherOpen(false);
+    setNotificationsOpen(false);
     setSelectedService(null);
     setShowAllServiceChips(false);
+    setOfferExpanded(false);
     setBookingChoiceOpen(false);
     setFulfillmentChoice(null);
     setCurrentDetail(null);
@@ -286,6 +357,7 @@ export default function Home() {
     setSelectedVehicleId(id);
     setSelectedService(null);
     setShowAllServiceChips(false);
+    setOfferExpanded(false);
     setBookingChoiceOpen(false);
     setFulfillmentChoice(null);
     setSwitcherOpen(false);
@@ -305,11 +377,29 @@ export default function Home() {
 
   function startHold(item: string) {
     if (item !== "Vehicles") return;
-    holdTimer.current = setTimeout(() => setSwitcherOpen(true), 500);
+    holdTimer.current = setTimeout(() => {
+      setNotificationsOpen(false);
+      setSwitcherOpen(true);
+    }, 500);
   }
 
   function endHold() {
     if (holdTimer.current) clearTimeout(holdTimer.current);
+  }
+
+  function openNotification(notification: Notification) {
+    setNotificationsOpen(false);
+    if (notification.id === "approval") {
+      changeScenario("approval");
+      return;
+    }
+    if (notification.id === "receipt") {
+      setArea("Vehicles");
+      setSelectedVehicleId("honda");
+      setShowAllHistory(true);
+      return;
+    }
+    changeScenario("today");
   }
 
   const detailActivity = activities.find((activity) => activity.id === currentDetail);
@@ -365,8 +455,15 @@ export default function Home() {
               <option key={key} value={key}>{value.label}</option>
             ))}
           </select>
-          <button className="icon-button" aria-label={`${attentionCount} notifications`}>
-            ○{attentionCount > 0 && <span className="notification-dot">{attentionCount}</span>}
+          <button
+            className="icon-button notification-button"
+            aria-label={`${unreadNotificationCount} unread notifications`}
+            onClick={() => {
+              setSwitcherOpen(false);
+              setNotificationsOpen(true);
+            }}
+          >
+            ◔<span className="notification-dot">{unreadNotificationCount}</span>
           </button>
         </header>
 
@@ -384,6 +481,8 @@ export default function Home() {
               selectedService={selectedService}
               showAllServiceChips={showAllServiceChips}
               toggleAllServiceChips={() => setShowAllServiceChips((show) => !show)}
+              offerExpanded={offerExpanded}
+              toggleOffer={() => setOfferExpanded((expanded) => !expanded)}
               selectService={(service) => {
                 setSelectedService(service);
                 setBookingChoiceOpen(false);
@@ -520,6 +619,46 @@ export default function Home() {
             </section>
           </div>
         )}
+
+        {notificationsOpen && (
+          <div className="sheet-backdrop" role="presentation" onClick={() => setNotificationsOpen(false)}>
+            <section
+              className="bottom-sheet notification-sheet"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="notifications-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="sheet-handle" />
+              <div className="sheet-title-row notification-title-row">
+                <div>
+                  <p className="eyebrow">Account activity</p>
+                  <h2 id="notifications-title">Notifications</h2>
+                </div>
+                <button className="close-button" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications">×</button>
+              </div>
+              <div className="notification-list">
+                {sampleNotifications.map((notification) => (
+                  <button
+                    className={`notification-row ${notification.unread ? "unread" : ""}`}
+                    key={notification.id}
+                    onClick={() => openNotification(notification)}
+                  >
+                    <span className={`notification-mark ${notification.id}`}>{notification.id === "approval" ? "!" : notification.id === "receipt" ? "✓" : "□"}</span>
+                    <span className="notification-copy">
+                      <span className="notification-meta"><small>{notification.time}</small>{notification.unread && <i />}</span>
+                      <strong>{notification.title}</strong>
+                      <span>{notification.detail}</span>
+                      <small>{notification.vehicle}</small>
+                      <b>{notification.action} ›</b>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="notification-footnote">Approvals and active service also remain available under Service → Current.</p>
+            </section>
+          </div>
+        )}
       </section>
     </main>
   );
@@ -605,6 +744,8 @@ function ServiceArea({
   selectedService,
   showAllServiceChips,
   toggleAllServiceChips,
+  offerExpanded,
+  toggleOffer,
   selectService,
   bookingChoiceOpen,
   closeBookingChoice,
@@ -632,6 +773,8 @@ function ServiceArea({
   selectedService: string | null;
   showAllServiceChips: boolean;
   toggleAllServiceChips: () => void;
+  offerExpanded: boolean;
+  toggleOffer: () => void;
   selectService: (service: string) => void;
   bookingChoiceOpen: boolean;
   closeBookingChoice: () => void;
@@ -779,6 +922,14 @@ function ServiceArea({
                   <button className="text-button" onClick={() => selectService(selectedVehicle.recommendation)}>Check price</button>
                 </article>
 
+                {scenario.offer && (
+                  <AvailableOffer
+                    offer={scenario.offer}
+                    expanded={offerExpanded}
+                    toggle={toggleOffer}
+                  />
+                )}
+
                 <section className="content-section">
                   <div className="section-heading-row service-heading">
                     <div>
@@ -842,6 +993,32 @@ function ServiceArea({
         />
       )}
     </>
+  );
+}
+
+function AvailableOffer({ offer, expanded, toggle }: {
+  offer: NonNullable<Scenario["offer"]>;
+  expanded: boolean;
+  toggle: () => void;
+}) {
+  return (
+    <section className={`available-offer ${expanded ? "expanded" : ""}`}>
+      <button className="offer-summary" onClick={toggle} aria-expanded={expanded}>
+        <span className="offer-mark">%</span>
+        <span>
+          <small>Available offer</small>
+          <strong>{offer.title}</strong>
+        </span>
+        <span className="offer-expiry"><small>Expires</small><strong>{offer.expires}</strong></span>
+        <span className="offer-chevron">{expanded ? "⌃" : "⌄"}</span>
+      </button>
+      {expanded && (
+        <div className="offer-detail">
+          <p>{offer.detail}</p>
+          <button>View offer details</button>
+        </div>
+      )}
+    </section>
   );
 }
 
