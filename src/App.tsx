@@ -671,6 +671,8 @@ function ServiceArea({
                     </div>
                   </article>
                 )}
+
+                {scenario.market === "US" && <PartnerServicesModule />}
               </>
             )}
           </>
@@ -684,6 +686,37 @@ function ServiceArea({
         />
       )}
     </>
+  );
+}
+
+function PartnerServicesModule() {
+  const categories = [
+    { icon: "◉", title: "Tires", detail: "Shop tires and compare options" },
+    { icon: "◇", title: "Repairs", detail: "Engine, transmission, glass, electrical, and more" },
+    { icon: "✦", title: "Roadside", detail: "Help when you need it" },
+  ];
+
+  return (
+    <section className="partner-services" aria-labelledby="partner-services-title">
+      <p className="eyebrow">Beyond routine maintenance</p>
+      <div className="partner-services-heading">
+        <h3 id="partner-services-title">More ways we can help</h3>
+        <span>Available services vary</span>
+      </div>
+      <div className="partner-service-grid">
+        {categories.map((category) => (
+          <button className="partner-service-row" key={category.title}>
+            <span className="partner-service-icon" aria-hidden="true">{category.icon}</span>
+            <span>
+              <strong>{category.title}</strong>
+              <small>{category.detail}</small>
+            </span>
+            <span className="chevron">›</span>
+          </button>
+        ))}
+      </div>
+      <button className="catalog-link partner-catalog-link">See all services <span>›</span></button>
+    </section>
   );
 }
 
